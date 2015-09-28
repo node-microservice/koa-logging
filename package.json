@@ -1,0 +1,36 @@
+{
+  "name": "@microservice/logging",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "istanbul cover node_modules/mocha/bin/_mocha test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/node-microservice/logging.git"
+  },
+  "keywords": [
+    "microservice",
+    "logging"
+  ],
+  "author": "Doug Moscrop <doug.moscrop@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/node-microservice/logging/issues"
+  },
+  "homepage": "https://github.com/node-microservice/logging#readme",
+  "dependencies": {
+    "arr-flatten": "^1.0.1",
+    "on-finished": "^2.3.0",
+    "request-context": "^0.1.6"
+  },
+  "devDependencies": {
+    "express": "^4.13.3",
+    "istanbul": "^0.3.21",
+    "mocha": "^2.3.3",
+    "sinon": "^1.17.1",
+    "supertest": "^1.1.0",
+    "supertest-as-promised": "^2.0.2"
+  }
+}
