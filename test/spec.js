@@ -68,6 +68,5 @@ it('can be extended', function() {
     .get('')
     .then(function() {
       assert.equal(child.called, true);
-      assert.equal(info.called, true);
     });
 });
