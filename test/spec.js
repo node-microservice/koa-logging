@@ -1,31 +1,33 @@
 var assert = require('assert'),
+  bunyan = require('bunyan'),
   express = require('express'),
   supertest = require('supertest-as-promised'),
   sinon = require('sinon'),
   logging = require('../');
 
 var server,
-  info = sinon.spy(),
-  error = sinon.spy(),
-  child = sinon.spy(function() {
-    return {
-      child: child,
-      info: info,
-      error: error
-    };
-  });
+  log,
+  info,
+  error,
+  child;
 
 beforeEach(function() {
   server = express();
-  server.use(logging({
-    child: child,
-    info: info,
-    error: error
-  }));
+
+  var logger = bunyan.createLogger({
+    name: 'test',
+    serializers: bunyan.stdSerializers
+  });
+
+  info = sinon.spy(logger, 'info'),
+  error = sinon.spy(logger, 'error'),
+  child = sinon.spy(logger, 'child');
+
+  log = logging(logger);
 });
 
 it('logs response', function() {
-  server.use(logging.response());
+  server.use(log.responses());
   server.get('', function(req, res) {
     res.status(200).send();
   });
@@ -41,13 +43,14 @@ it('logs error', function() {
   server.get('', function(req, res, next) {
     next(new Error());
   });
-  server.use(logging.error());
+  server.use(log.errors());
   server.use(function(err, req, res, next) {
-    next();
+    res.status(500).end();
   });
 
   return supertest(server)
     .get('')
+    .expect(500)
     .then(function() {
       assert.equal(error.called, true);
     });
@@ -58,14 +61,15 @@ it('can be extended', function() {
     req.foo = 'foo';
     next();
   });
-  server.use(logging.include('foo'));
-  server.use(logging.response());
+  server.use(log.include('foo'));
+  server.use(log.responses());
   server.get('', function(req, res) {
     res.status(200).send();
   });
 
   return supertest(server)
     .get('')
+    .expect(200)
     .then(function() {
       assert.equal(child.called, true);
     });

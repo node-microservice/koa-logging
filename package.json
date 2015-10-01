@@ -27,6 +27,7 @@
     "request-context": "^0.1.6"
   },
   "devDependencies": {
+    "bunyan": "^1.5.1",
     "express": "^4.13.3",
     "istanbul": "^0.3.21",
     "mocha": "^2.3.3",
