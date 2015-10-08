@@ -1,54 +1,53 @@
-var assert = require('assert'),
+'use strict';
+/* global it, beforeEach */
+const assert = require('assert'),
   bunyan = require('bunyan'),
-  express = require('express'),
+  koa = require('koa'),
   supertest = require('supertest-as-promised'),
   sinon = require('sinon'),
   logging = require('../');
 
-var server,
+let server,
   log,
-  info,
+  debug,
   error,
   child;
 
 beforeEach(function() {
-  server = express();
+  server = koa();
 
   var logger = bunyan.createLogger({
     name: 'test',
     serializers: bunyan.stdSerializers
   });
 
-  info = sinon.spy(logger, 'info'),
-  error = sinon.spy(logger, 'error'),
+  debug = sinon.spy(logger, 'debug');
+  error = sinon.spy(logger, 'error');
   child = sinon.spy(logger, 'child');
 
   log = logging(logger);
 });
 
 it('logs response', function() {
-  server.use(log.responses());
-  server.get('', function(req, res) {
-    res.status(200).send();
+  server.use(log);
+  server.use(function* () {
+    this.status = 200;
   });
 
-  return supertest(server)
+  return supertest(server.callback())
     .get('')
     .then(function() {
-      assert.equal(info.called, true);
+      assert.equal(debug.called, true);
     });
 });
 
 it('logs error', function() {
-  server.get('', function(req, res, next) {
-    next(new Error());
-  });
-  server.use(log.errors());
-  server.use(function(err, req, res, next) {
-    res.status(500).end();
+  server.use(log);
+  server.use(function* () {
+    throw new Error();
   });
 
-  return supertest(server)
+  return supertest(server.callback())
     .get('')
     .expect(500)
     .then(function() {
@@ -57,19 +56,19 @@ it('logs error', function() {
 });
 
 it('can be extended', function() {
-  server.use(function(req, res, next) {
-    req.foo = 'foo';
-    next();
+  server.use(log);
+  server.use(function* (next) {
+    this.foo = 'foo';
+    yield* next;
   });
-  server.use(log.include('foo'));
-  server.use(log.responses());
-  server.get('', function(req, res) {
-    res.status(200).send();
+  server.use(logging.include('foo'));
+  server.use(function* () {
+    this.status = 201;
   });
 
-  return supertest(server)
+  return supertest(server.callback())
     .get('')
-    .expect(200)
+    .expect(201)
     .then(function() {
       assert.equal(child.called, true);
     });

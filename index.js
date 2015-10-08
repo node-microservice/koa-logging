@@ -1,69 +1,47 @@
-var context = require('request-context'),
-  flatten = require('arr-flatten'),
+var flatten = require('arr-flatten'),
   ensureMap = require('ensure-map'),
   onFinished = require('on-finished');
 
-function includeInLogger(logger, picker) {
-  return function() {
-    var included = flatten([].slice.call(arguments));
-    var map = ensureMap(included);
-
-    return function(req, res, next) {
-      req.logger = req.logger || logger;
-
-      if (included.length) {
-        var values = {};
-
-        included.forEach(function(key) {
-          var alias = map[key];
-          values[alias] = picker(req, key);
-        });
-
-        req.logger = req.logger.child(values, true);
-      }
-
-      next();
-    };
-  };
-}
-
 module.exports = function(logger) {
-  process.on('uncaughtException', function(err) {
+  return function *(next) {
+    var ctx = this;
+
+    ctx.log = logger;
+
+    onFinished(ctx.res, function() {
+      ctx.log.debug({ res: ctx.res, req: ctx.req }, 'Response finished');
+    });
+
     try {
-      logger.fatal({err: err}, 'Uncaught Exception');
-    } catch (error) {
-      console.error(error);
+      yield* next;
+    } catch (err) {
+      ctx.log.error({ err: err }, 'Error');
+      throw err;
     }
-  });
+  };
+};
 
-  return {
-    include: includeInLogger(logger, function(req, key) {
-      return req[key];
-    }),
-    context: includeInLogger(logger, function(req, key) {
-      return context.get(key);
-    }),
-    responses: function() {
-      return function(req, res, next) {
-        req.logger = req.logger || logger;
+module.exports.include = function() {
+  var included = flatten([].slice.call(arguments));
+  var map = ensureMap(included);
 
-        onFinished(res, function(err) {
-          if (err) {
-            req.logger.error({err: err}, 'Error');
-          }
+  return function *(next) {
+    var ctx = this;
 
-          req.logger.info({res: res, req: req}, 'Response finished');
-        });
-
-        next();
-      };
-    },
-    errors: function() {
-      return function(err, req, res, next) {
-        req.logger = req.logger || logger;
-        req.logger.error({err: err}, 'Error');
-        next(err);
-      };
+    if (typeof ctx.log === 'undefined') {
+      throw new Error('.use(logging(logger)) first');
     }
+
+    if (included.length) {
+      var values = {};
+
+      included.forEach(function(key) {
+        var alias = map[key];
+        values[alias] = ctx[key];
+      });
+
+      ctx.log = ctx.log.child(values, true);
+    }
+    yield* next;
   };
 };
